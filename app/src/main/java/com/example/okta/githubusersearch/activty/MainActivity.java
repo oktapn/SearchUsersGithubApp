@@ -96,7 +96,6 @@ public class MainActivity extends AppCompatActivity {
         pd.setCancelable(false);
         pd.setProgressStyle(android.R.style.Widget_ProgressBar_Small);
         pd.show();
-        final int pages = Integer.valueOf(page) + 1;
 
         APISearch client = APIClient.createService(APISearch.class);
 
@@ -104,7 +103,8 @@ public class MainActivity extends AppCompatActivity {
         call.enqueue(new Callback<ResponseSearch>() {
             @Override
             public void onResponse(Call<ResponseSearch> call, final Response<ResponseSearch> response) {
-                if (response.body().getTotalCount() > 30) {
+                if (response.body().getTotalCount() > 0) {
+                    mRecyclerView.setVisibility(View.VISIBLE);
                     mAdapter = new RecycleviewAdapterSearchUser();
                     mAdapter.setItems(response.body().getItems());
                     mAdapter.notifyDataSetChanged();
@@ -116,25 +116,29 @@ public class MainActivity extends AppCompatActivity {
                     mRecyclerView.setOnScrollListener(new EndlessRecyclerOnScrollListener(mLayoutManager) {
                         @Override
                         public void onLoadMore(int current_page) {
-                            if (mAdapter.getItemCount() < 1000) {
-                                response.body().getItems().add(null);
-                                mAdapter.notifyItemInserted(response.body().getItems().size() - 1);
-                                new Handler().postDelayed(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        response.body().getItems().remove(response.body().getItems().size() - 1);
-                                        mAdapter.notifyItemRemoved(response.body().getItems().size());
-                                        if (mAdapter.getItemCount() < 1000) {
-                                            consumeAPIusernamenextpage(query, String.valueOf(pages));
-                                        } else {
-                                            Toast.makeText(getApplicationContext(), "Tidak ada Data Lainnya", Toast.LENGTH_LONG).show();
+                            if (response.body().getTotalCount() > 30) {
+                                if (mAdapter.getItemCount() < 1000) {
+                                    response.body().getItems().add(null);
+                                    mAdapter.notifyItemInserted(response.body().getItems().size() - 1);
+                                    new Handler().postDelayed(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            response.body().getItems().remove(response.body().getItems().size() - 1);
+                                            mAdapter.notifyItemRemoved(response.body().getItems().size());
+                                            if (mAdapter.getItemCount() < 1000 && mAdapter.getItemCount() != response.body().getTotalCount()) {
+                                                int pagebytotal = mAdapter.getItemCount();
+                                                consumeAPIusernamenextpage(query, String.valueOf(pagebytotal / 30 + 1));
+                                            } else {
+                                                Toast.makeText(getApplicationContext(), "Tidak ada Data Lainnya", Toast.LENGTH_LONG).show();
+                                            }
                                         }
-                                    }
-                                }, 2000);
+                                    }, 2000);
+                                }
                             }
                         }
                     });
                 } else {
+                    mRecyclerView.setVisibility(View.GONE);
                     Toast.makeText(getApplicationContext(), "User Tidak Di temukan", Toast.LENGTH_LONG).show();
                 }
                 pd.dismiss();
@@ -156,8 +160,12 @@ public class MainActivity extends AppCompatActivity {
         call.enqueue(new Callback<ResponseSearch>() {
             @Override
             public void onResponse(Call<ResponseSearch> call, Response<ResponseSearch> response) {
-                for (int i = 0; i < response.body().getItems().size(); i++) {
-                    mAdapter.addItem(response.body().getItems().get(i), mAdapter.getItemCount());
+                if (mAdapter.getItemCount() != response.body().getTotalCount()) {
+                    for (int i = 0; i < response.body().getItems().size(); i++) {
+                        mAdapter.addItem(response.body().getItems().get(i), mAdapter.getItemCount());
+                    }
+                }else {
+                    Toast.makeText(getApplicationContext(),"Tidak ada Data lainnya",Toast.LENGTH_LONG).show();
                 }
                 mAdapter.notifyDataSetChanged();
             }
